@@ -11,7 +11,7 @@ namespace VEServicesClient
 
         public string address = "localhost:2567";
         public bool secured = false;
-        public string secretKey = "secret";
+        public string secret = "secret";
 
         private ColyseusClient _client;
         public ColyseusClient Client

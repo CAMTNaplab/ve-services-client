@@ -1,7 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using UnityEngine;
 
 namespace VEServicesClient
 {
@@ -21,6 +20,7 @@ namespace VEServicesClient
 
         public override async Task<bool> Join()
         {
+            Options["secret"] = ClientInstance.Instance.secret;
             if (await base.Join())
             {
                 SetupRoom();
@@ -31,6 +31,7 @@ namespace VEServicesClient
 
         public override async Task<bool> JoinById(string id)
         {
+            Options["secret"] = ClientInstance.Instance.secret;
             if (await base.JoinById(id))
             {
                 SetupRoom();
