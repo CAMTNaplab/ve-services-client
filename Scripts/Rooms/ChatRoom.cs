@@ -38,10 +38,10 @@ namespace VEServicesClient
             Room.OnMessage<GroupUserListResp>("group-user-list", OnGroupUserList);
             Room.OnMessage<GroupListResp>("group-list", OnGroupList);
             Room.OnMessage<GroupJoinResp>("group-join", OnGroupJoin);
-            Room.OnMessage<ChatResp>("local", OnLocalChat);
-            Room.OnMessage<ChatResp>("global", OnGlobalChat);
-            Room.OnMessage<ChatResp>("whisper", OnWhisperChat);
-            Room.OnMessage<ChatResp>("group", OnGroupChat);
+            Room.OnMessage<ChatData>("local", OnLocalChat);
+            Room.OnMessage<ChatData>("global", OnGlobalChat);
+            Room.OnMessage<ChatData>("whisper", OnWhisperChat);
+            Room.OnMessage<ChatData>("group", OnGroupChat);
             Room.OnMessage<GroupData>("create-group", OnGroupCreate);
             Room.OnMessage<GroupData>("update-group", OnGroupUpdate);
         }
@@ -71,22 +71,22 @@ namespace VEServicesClient
 
         }
 
-        private void OnLocalChat(ChatResp data)
+        private void OnLocalChat(ChatData data)
         {
 
         }
 
-        private void OnGlobalChat(ChatResp data)
+        private void OnGlobalChat(ChatData data)
         {
 
         }
 
-        private void OnWhisperChat(ChatResp data)
+        private void OnWhisperChat(ChatData data)
         {
 
         }
 
-        private void OnGroupChat(ChatResp data)
+        private void OnGroupChat(ChatData data)
         {
 
         }
@@ -99,6 +99,100 @@ namespace VEServicesClient
         private void OnGroupUpdate(GroupData data)
         {
 
+        }
+
+        public async Task SendValidateUser(ClientData data)
+        {
+            await Room.Send("validate-user", data);
+        }
+
+        public async Task SendLocalChat(ChatData data)
+        {
+            await Room.Send("local", data);
+        }
+
+        public async Task SendGlobalChat(ChatData data)
+        {
+            await Room.Send("global", data);
+        }
+
+        public async Task SendWhisperChat(ChatData data)
+        {
+            await Room.Send("whisper", data);
+        }
+
+        public async Task SendWhisperByIdChat(ChatData data)
+        {
+            await Room.Send("whisper-by-id", data);
+        }
+
+        public async Task SendGroupChat(ChatData data)
+        {
+            await Room.Send("group", data);
+        }
+
+        public async Task SendCreateGroupChat(GroupData data)
+        {
+            await Room.Send("create-group", data);
+        }
+
+        public async Task SendUpdateGroupChat(GroupData data)
+        {
+            await Room.Send("update-group", data);
+        }
+
+        public async Task SendGroupInvitationList()
+        {
+            await Room.Send("group-invitation-list");
+        }
+
+        public async Task SendGroupUserList(string groupId)
+        {
+            var data = new Dictionary<string, object>();
+            data["groupId"] = groupId;
+            await Room.Send("group-user-list", data);
+        }
+
+        public async Task SendGroupList()
+        {
+            await Room.Send("group-list");
+        }
+
+        public async Task SendGroupInvite(string groupId, string userId)
+        {
+            var data = new Dictionary<string, object>();
+            data["groupId"] = groupId;
+            data["userId"] = userId;
+            await Room.Send("group-invite", data);
+        }
+
+        public async Task SendGroupInviteAccept(string groupId)
+        {
+            var data = new Dictionary<string, object>();
+            data["groupId"] = groupId;
+            await Room.Send("group-invite", data);
+        }
+
+        public async Task SendGroupInviteDecline(string groupId)
+        {
+            var data = new Dictionary<string, object>();
+            data["groupId"] = groupId;
+            await Room.Send("group-invite", data);
+        }
+
+        public async Task SendLeaveGroup(string groupId)
+        {
+            var data = new Dictionary<string, object>();
+            data["groupId"] = groupId;
+            await Room.Send("group-invite", data);
+        }
+
+        public async Task SendKickUser(string groupId, string userId)
+        {
+            var data = new Dictionary<string, object>();
+            data["groupId"] = groupId;
+            data["userId"] = userId;
+            await Room.Send("group-invite", data);
         }
     }
 }
