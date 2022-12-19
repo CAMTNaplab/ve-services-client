@@ -6,24 +6,19 @@ namespace VEServicesClient
 {
     public class ListingRoom : BaseRoomManager<ListingRoomState>
     {
+        private GameServerData data;
+
         public ListingRoom(GameServerData data) : base("listingRoom", new Dictionary<string, object>())
         {
-            Options["id"] = data.id;
-            Options["address"] = data.address;
-            Options["port"] = data.port;
-            Options["title"] = data.title;
-            Options["description"] = data.description;
-            Options["map"] = data.map;
-            Options["currentPlayer"] = data.currentPlayer;
-            Options["maxPlayer"] = data.maxPlayer;
+            this.data = data;
         }
 
         public override async Task<bool> Join()
         {
             Options["secret"] = ClientInstance.Instance.secret;
+            Options["data"] = data;
             if (await base.Join())
             {
-                SetupRoom();
                 return true;
             }
             return false;
@@ -32,16 +27,18 @@ namespace VEServicesClient
         public override async Task<bool> JoinById(string id)
         {
             Options["secret"] = ClientInstance.Instance.secret;
+            Options["data"] = data;
             if (await base.JoinById(id))
             {
-                SetupRoom();
                 return true;
             }
             return false;
         }
 
-        private void SetupRoom()
+        public async Task SendUpdate(GameServerData data)
         {
+            this.data = data;
+            await Room.Send("update", data);
         }
     }
 }
