@@ -1,7 +1,7 @@
 namespace VEServicesClient
 {
     [System.Serializable]
-    public struct ChatResp
+    public struct ChatData
     {
         public string groupId;
         public string userId;
