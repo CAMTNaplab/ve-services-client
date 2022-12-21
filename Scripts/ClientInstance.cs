@@ -33,5 +33,10 @@ namespace VEServicesClient
             Instance = this;
             DontDestroyOnLoad(gameObject);
         }
+
+        public string GetApiAddress()
+        {
+            return (secured ? "https://" : "http://") + address;
+        }
     }
 }
