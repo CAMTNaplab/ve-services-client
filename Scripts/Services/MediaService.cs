@@ -23,7 +23,7 @@ namespace VEServicesClient
 
         public static async Task<RestClient.Result> DeleteMedia(string id)
         {
-            return await RestClient.Delete(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/" + id));
+            return await RestClient.Delete(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/" + id), string.Empty);
         }
 
         public static async Task<RestClient.Result<List<VideoData>>> GetVideos(string playListId)
