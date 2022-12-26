@@ -15,6 +15,19 @@ namespace VEServicesClient
             get { return Room != null && Room.colyseusConnection != null && Room.colyseusConnection.IsOpen; }
         }
 
+
+        private ColyseusClient _client;
+        public ColyseusClient Client
+        {
+            get
+            {
+                if (_client == null)
+                    _client = new ColyseusClient(ClientInstance.Instance.GetWsAddress());
+                _client.Settings.useSecureProtocol = ClientInstance.Instance.secured;
+                return _client;
+            }
+        }
+
         public BaseRoomManager(string roomName, Dictionary<string, object> options)
         {
             if (options == null)
@@ -27,7 +40,7 @@ namespace VEServicesClient
         {
             try
             {
-                Room = await ClientInstance.Instance.Client.JoinOrCreate<T>(RoomName, Options);
+                Room = await Client.JoinOrCreate<T>(RoomName, Options);
                 SessionId = Room.SessionId;
                 return true;
             }
@@ -43,7 +56,7 @@ namespace VEServicesClient
         {
             try
             {
-                Room = await ClientInstance.Instance.Client.JoinById<T>(id, Options);
+                Room = await Client.JoinById<T>(id, Options);
                 SessionId = Room.SessionId;
                 return true;
             }
