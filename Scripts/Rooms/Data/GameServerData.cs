@@ -5,7 +5,7 @@ namespace VEServicesClient
     {
         public string id;
         public string address;
-        public string port;
+        public int port;
         public string title;
         public string description;
         public string map;
