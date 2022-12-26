@@ -7,17 +7,17 @@ namespace VEServicesClient
 {
     public class MediaService
     {
-        public static async Task<RestClient.Result<ClientData>> AddUser(string userToken)
+        public static async Task<RestClient.Result<ClientData>> AddUser(string userId)
         {
             Dictionary<string, object> formData = new Dictionary<string, object>();
-            formData["userToken"] = userToken;
+            formData["userId"] = userId;
             return await RestClient.Post<Dictionary<string, object>, ClientData>(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/add-user"), formData);
         }
 
-        public static async Task<RestClient.Result> RemoveUser(string userToken)
+        public static async Task<RestClient.Result> RemoveUser(string userId)
         {
             Dictionary<string, object> formData = new Dictionary<string, object>();
-            formData["userToken"] = userToken;
+            formData["userId"] = userId;
             return await RestClient.Post(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/remove-user"), formData);
         }
 
