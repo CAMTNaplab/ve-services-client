@@ -49,6 +49,15 @@ namespace VEServicesClient
             return null;
         }
 
+        public async Task LeaveBroadcastRoom()
+        {
+            if (BroadcastRoom != null)
+            {
+                await BroadcastRoom.Leave();
+                BroadcastRoom = null;
+            }
+        }
+
         public async Task<ChatRoom> JoinChatRoom()
         {
             if (ChatRoom != null)
@@ -59,6 +68,15 @@ namespace VEServicesClient
                 return ChatRoom;
             }
             return null;
+        }
+
+        public async Task LeaveChatRoom()
+        {
+            if (ChatRoom != null)
+            {
+                await ChatRoom.Leave();
+                ChatRoom = null;
+            }
         }
 
         public async Task<ListingRoom> JoinListingRoom(GameServerData data)
@@ -73,6 +91,15 @@ namespace VEServicesClient
             return null;
         }
 
+        public async Task LeaveListingRoom()
+        {
+            if (ListingRoom != null)
+            {
+                await ListingRoom.Leave();
+                ListingRoom = null;
+            }
+        }
+
         public async Task<MediaRoom> JoinMediaRoom()
         {
             if (MediaRoom != null)
@@ -83,6 +110,15 @@ namespace VEServicesClient
                 return MediaRoom;
             }
             return null;
+        }
+
+        public async Task LeaveMediaRoom()
+        {
+            if (MediaRoom != null)
+            {
+                await MediaRoom.Leave();
+                MediaRoom = null;
+            }
         }
     }
 }
