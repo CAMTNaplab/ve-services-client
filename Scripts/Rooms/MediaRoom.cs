@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace VEServicesClient
 {
-    public class MediaRoom : BaseRoomManager<MediaRoomState>
+    public class MediaRoom : BaseRoomManager<object>
     {
         public MediaRoom() : base("mediaRoom", new Dictionary<string, object>())
         {

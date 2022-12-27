@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace VEServicesClient
 {
-    public class ChatRoom : BaseRoomManager<ChatRoomState>
+    public class ChatRoom : BaseRoomManager<object>
     {
         public ChatRoom() : base("chatRoom", new Dictionary<string, object>())
         {

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace VEServicesClient
 {
-    public class ListingRoom : BaseRoomManager<ListingRoomState>
+    public class ListingRoom : BaseRoomManager<object>
     {
         private GameServerData data;
 

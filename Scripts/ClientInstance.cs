@@ -1,3 +1,4 @@
+using Colyseus;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -15,6 +16,19 @@ namespace VEServicesClient
         public ChatRoom ChatRoom { get; private set; } = null;
         public ListingRoom ListingRoom { get; private set; } = null;
         public MediaRoom MediaRoom { get; private set; } = null;
+
+
+        private ColyseusClient _client;
+        public ColyseusClient Client
+        {
+            get
+            {
+                if (_client == null)
+                    _client = new ColyseusClient(GetWsAddress());
+                _client.Settings.useSecureProtocol = secured;
+                return _client;
+            }
+        }
 
         private void Awake()
         {

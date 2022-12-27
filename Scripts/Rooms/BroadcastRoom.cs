@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace VEServicesClient
 {
-    public class BroadcastRoom : BaseRoomManager<BroadcastRoomState>
+    public class BroadcastRoom : BaseRoomManager<object>
     {
         public delegate void BroadcastCallback(int type, object data);
         private static readonly Dictionary<int, BroadcastCallback> _broadcastCallbacks = new Dictionary<int, BroadcastCallback>();
