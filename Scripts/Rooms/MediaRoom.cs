@@ -39,5 +39,49 @@ namespace VEServicesClient
         {
 
         }
+
+        public async Task SendSub(string playListId)
+        {
+            await Room.Send("sub", playListId);
+        }
+
+        public async Task SendPlay(string playListId)
+        {
+            await Room.Send("play", playListId);
+        }
+
+        public async Task SendPause(string playListId)
+        {
+            await Room.Send("pause", playListId);
+        }
+
+        public async Task SendStop(string playListId)
+        {
+            await Room.Send("stop", playListId);
+        }
+
+        public async Task SendSeek(string playListId, float time)
+        {
+            Dictionary<string, object> data = new Dictionary<string, object>();
+            data["playListId"] = playListId;
+            data["time"] = time;
+            await Room.Send("seek", data);
+        }
+
+        public async Task SendVolume(string playListId, float volume)
+        {
+            Dictionary<string, object> data = new Dictionary<string, object>();
+            data["playListId"] = playListId;
+            data["volume"] = volume;
+            await Room.Send("volume", data);
+        }
+
+        public async Task SendSwitch(string playListId, string mediaId)
+        {
+            Dictionary<string, object> data = new Dictionary<string, object>();
+            data["playListId"] = playListId;
+            data["mediaId"] = mediaId;
+            await Room.Send("switch", data);
+        }
     }
 }
