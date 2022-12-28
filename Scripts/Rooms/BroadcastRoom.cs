@@ -6,7 +6,7 @@ namespace VEServicesClient
 {
     public class BroadcastRoom : BaseRoomManager<object>
     {
-        public delegate void BroadcastCallback(int type, object data);
+        public delegate void BroadcastCallback(int type, string data);
         private static readonly Dictionary<int, BroadcastCallback> _broadcastCallbacks = new Dictionary<int, BroadcastCallback>();
 
         public BroadcastRoom() : base("broadcastRoom", new Dictionary<string, object>())
@@ -44,17 +44,19 @@ namespace VEServicesClient
         private void OnMsg(BroadcastData data)
         {
             if (_broadcastCallbacks.ContainsKey(data.type))
+            {
                 _broadcastCallbacks[data.type].Invoke(data.type, data.data);
+            }
         }
 
-        public async Task SendAll(BroadcastData data)
+        public async Task SendAll(BroadcastData msg)
         {
-            await Room.Send("all", data);
+            await Room.Send("all", msg);
         }
 
-        public async Task SendOther(BroadcastData data)
+        public async Task SendOther(BroadcastData msg)
         {
-            await Room.Send("other", data);
+            await Room.Send("other", msg);
         }
 
         public static void RegisterBroadcast(int type, BroadcastCallback callback)

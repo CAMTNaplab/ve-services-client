@@ -1,9 +1,15 @@
 namespace VEServicesClient
 {
     [System.Serializable]
-    public struct BroadcastData
+    public class BroadcastData
     {
         public int type;
-        public object data;
+        public string data;
+
+        public BroadcastData()
+        {
+            type = 0;
+            data = string.Empty;
+        }
     }
 }
