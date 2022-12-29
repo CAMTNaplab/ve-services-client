@@ -6,6 +6,8 @@ namespace VEServicesClient
 {
     public class MediaRoom : BaseRoomManager<object>
     {
+        public static event System.Action<MediaResp> onResp;
+
         public MediaRoom() : base("mediaRoom", new Dictionary<string, object>())
         {
         }
@@ -37,7 +39,8 @@ namespace VEServicesClient
 
         private void OnRespMsg(MediaResp data)
         {
-
+            if (onResp != null)
+                onResp.Invoke(data);
         }
 
         public async Task SendSub(string playListId)
