@@ -51,6 +51,11 @@ namespace VEServicesClient
             return (secured ? "https://" : "http://") + address;
         }
 
+        public string GetMediaContentAddress()
+        {
+            return (secured ? "https://" : "http://") + address + "/media/uploads/";
+        }
+
         public async Task<BroadcastRoom> JoinBroadcastRoom()
         {
             if (BroadcastRoom != null)
