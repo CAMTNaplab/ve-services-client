@@ -9,6 +9,8 @@ namespace VEServicesClient
 {
     public class MediaService
     {
+        public static string UserToken { get; set; }
+
         public static async Task<RestClient.Result<ClientData>> AddUser(string userId)
         {
             Dictionary<string, object> formData = new Dictionary<string, object>();
@@ -23,9 +25,9 @@ namespace VEServicesClient
             return await RestClient.Post(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/remove-user"), formData, ClientInstance.Instance.secret);
         }
 
-        public static async Task<RestClient.Result> DeleteMedia(string token, string id)
+        public static async Task<RestClient.Result> DeleteMedia(string id)
         {
-            return await RestClient.Delete(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/" + id), token);
+            return await RestClient.Delete(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/" + id), UserToken);
         }
 
         public static async Task<RestClient.Result<List<VideoData>>> GetVideos(string playListId)
@@ -33,7 +35,7 @@ namespace VEServicesClient
             return await RestClient.Get<List<VideoData>>(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/" + playListId));
         }
 
-        public static async Task<RestClient.Result> UploadMedia(string token, string playListId, byte[] file, string fileExt, System.Action<float> onProgress = null, System.Action onDone = null)
+        public static async Task<RestClient.Result> UploadMedia(string playListId, byte[] file, string fileExt, System.Action<float> onProgress = null, System.Action onDone = null)
         {
             WWWForm form = new WWWForm();
             if (fileExt.Equals("mp4"))
@@ -44,7 +46,7 @@ namespace VEServicesClient
 
             UnityWebRequest webRequest = UnityWebRequest.Post(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/upload"), form);
             webRequest.certificateHandler = new SimpleWebRequestCert();
-            webRequest.SetRequestHeader("Authorization", "Bearer " + token);
+            webRequest.SetRequestHeader("Authorization", "Bearer " + UserToken);
 
             UnityWebRequestAsyncOperation asyncOp = webRequest.SendWebRequest();
             while (!asyncOp.isDone)
