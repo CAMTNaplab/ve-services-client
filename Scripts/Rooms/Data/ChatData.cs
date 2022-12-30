@@ -1,7 +1,7 @@
 namespace VEServicesClient
 {
     [System.Serializable]
-    public struct ChatData
+    public class ChatData
     {
         public string groupId;
         public string userId;
@@ -13,5 +13,19 @@ namespace VEServicesClient
         public float x;
         public float y;
         public float z;
+
+        public ChatData()
+        {
+            groupId = string.Empty;
+            userId = string.Empty;
+            userId2 = string.Empty;
+            name = string.Empty;
+            name2 = string.Empty;
+            msg = string.Empty;
+            map = string.Empty;
+            x = 0f;
+            y = 0f;
+            z = 0f;
+        }
     }
 }

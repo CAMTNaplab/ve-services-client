@@ -1,8 +1,13 @@
 namespace VEServicesClient
 {
     [System.Serializable]
-    public struct GroupLeaveResp
+    public class GroupLeaveResp
     {
         public string groupId;
+
+        public GroupLeaveResp()
+        {
+            groupId = string.Empty;
+        }
     }
 }

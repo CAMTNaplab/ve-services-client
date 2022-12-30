@@ -1,8 +1,13 @@
 namespace VEServicesClient
 {
     [System.Serializable]
-    public struct GroupInvitationListResp
+    public class GroupInvitationListResp
     {
         public GroupData[] list;
+
+        public GroupInvitationListResp()
+        {
+            list = new GroupData[0];
+        }
     }
 }
