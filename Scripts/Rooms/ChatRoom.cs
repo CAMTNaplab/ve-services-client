@@ -6,6 +6,23 @@ namespace VEServicesClient
 {
     public class ChatRoom : BaseRoomManager<object>
     {
+        public static event System.Action<ChatData> onLocalChat;
+        public static event System.Action<ChatData> onGlobalChat;
+        public static event System.Action<ChatData> onWhisperChat;
+        public static event System.Action<ChatData> onGroupChat;
+        public static event System.Action<GroupData> onCreateGroup;
+        public static event System.Action<GroupData> onUpdateGroup;
+        public static event System.Action<GroupInvitationListResp> onGroupInvitationList;
+        public static event System.Action<GroupUserListResp> onGroupUserList;
+        public static event System.Action<GroupListResp> onGroupList;
+        public static event System.Action<GroupJoinResp> onGroupJoin;
+        public static event System.Action<GroupLeaveResp> onGroupLeave;
+
+        public static readonly Dictionary<string, GroupData> Groups = new Dictionary<string, GroupData>();
+        public static readonly Dictionary<string, GroupData> GroupInvitations = new Dictionary<string, GroupData>();
+        public static readonly Dictionary<string, UserData> GroupUsers = new Dictionary<string, UserData>();
+        public static readonly Dictionary<string, List<string>> GroupUserIds = new Dictionary<string, List<string>>();
+
         public ChatRoom() : base("chatRoom", new Dictionary<string, object>())
         {
         }
@@ -49,57 +66,87 @@ namespace VEServicesClient
 
         private void OnGroupLeave(GroupLeaveResp data)
         {
-
+            if (onGroupLeave != null)
+                onGroupLeave.Invoke(data);
         }
 
         private void OnGroupInvitationList(GroupInvitationListResp data)
         {
-
+            GroupInvitations.Clear();
+            foreach (var entry in data.list)
+            {
+                GroupInvitations.Add(entry.groupId, entry);
+            }
+            if (onGroupInvitationList != null)
+                onGroupInvitationList.Invoke(data);
         }
 
         private void OnGroupUserList(GroupUserListResp data)
         {
-
+            GroupUsers.Clear();
+            GroupUserIds[data.groupId] = new List<string>();
+            foreach (var entry in data.list)
+            {
+                GroupUsers.Add(entry.userId, entry);
+                GroupUserIds[data.groupId].Add(entry.userId);
+            }
+            if (onGroupUserList != null)
+                onGroupUserList.Invoke(data);
         }
 
         private void OnGroupList(GroupListResp data)
         {
-
+            Groups.Clear();
+            foreach (var entry in data.list)
+            {
+                Groups.Add(entry.groupId, entry);
+            }
+            if (onGroupList != null)
+                onGroupList.Invoke(data);
         }
 
         private void OnGroupJoin(GroupJoinResp data)
         {
-
+            if (onGroupJoin != null)
+                onGroupJoin.Invoke(data);
         }
 
         private void OnLocalChat(ChatData data)
         {
-
+            if (onLocalChat != null)
+                onLocalChat.Invoke(data);
         }
 
         private void OnGlobalChat(ChatData data)
         {
-
+            if (onGlobalChat != null)
+                onGlobalChat.Invoke(data);
         }
 
         private void OnWhisperChat(ChatData data)
         {
-
+            if (onWhisperChat != null)
+                onWhisperChat.Invoke(data);
         }
 
         private void OnGroupChat(ChatData data)
         {
-
+            if (onGroupChat != null)
+                onGroupChat.Invoke(data);
         }
 
         private void OnGroupCreate(GroupData data)
         {
-
+            Groups[data.groupId] = data;
+            if (onCreateGroup != null)
+                onCreateGroup.Invoke(data);
         }
 
         private void OnGroupUpdate(GroupData data)
         {
-
+            Groups[data.groupId] = data;
+            if (onUpdateGroup != null)
+                onUpdateGroup.Invoke(data);
         }
 
         public async Task SendValidateUser(ClientData data)
