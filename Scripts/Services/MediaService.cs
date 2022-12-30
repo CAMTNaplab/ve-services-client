@@ -9,8 +9,6 @@ namespace VEServicesClient
 {
     public class MediaService
     {
-        public static string UserToken { get; set; }
-
         public static async Task<RestClient.Result<ClientData>> AddUser(string userId)
         {
             Dictionary<string, object> formData = new Dictionary<string, object>();
@@ -27,7 +25,7 @@ namespace VEServicesClient
 
         public static async Task<RestClient.Result> DeleteMedia(string id)
         {
-            return await RestClient.Delete(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/" + id), UserToken);
+            return await RestClient.Delete(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/" + id), ClientInstance.MediaUserToken);
         }
 
         public static async Task<RestClient.Result<List<VideoData>>> GetVideos(string playListId)
@@ -46,7 +44,7 @@ namespace VEServicesClient
 
             UnityWebRequest webRequest = UnityWebRequest.Post(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/upload"), form);
             webRequest.certificateHandler = new SimpleWebRequestCert();
-            webRequest.SetRequestHeader("Authorization", "Bearer " + UserToken);
+            webRequest.SetRequestHeader("Authorization", "Bearer " + ClientInstance.MediaUserToken);
 
             UnityWebRequestAsyncOperation asyncOp = webRequest.SendWebRequest();
             while (!asyncOp.isDone)

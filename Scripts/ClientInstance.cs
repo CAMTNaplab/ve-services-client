@@ -16,6 +16,9 @@ namespace VEServicesClient
         public ChatRoom ChatRoom { get; private set; } = null;
         public ListingRoom ListingRoom { get; private set; } = null;
         public MediaRoom MediaRoom { get; private set; } = null;
+        public static string ChatUserToken { get; set; }
+        public static string MediaUserToken { get; set; }
+
 
 
         private ColyseusClient _client;

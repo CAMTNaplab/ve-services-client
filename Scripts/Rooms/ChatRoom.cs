@@ -12,6 +12,7 @@ namespace VEServicesClient
 
         public override async Task<bool> Join()
         {
+            Options["token"] = ClientInstance.ChatUserToken;
             if (await base.Join())
             {
                 SetupRoom();
@@ -22,6 +23,7 @@ namespace VEServicesClient
 
         public override async Task<bool> JoinById(string id)
         {
+            Options["token"] = ClientInstance.ChatUserToken;
             if (await base.JoinById(id))
             {
                 SetupRoom();
