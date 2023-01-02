@@ -63,12 +63,12 @@ namespace VEServicesClient
         {
             if (callback == null)
             {
-                Debug.LogWarning($"[BroadcastRoom] Registering broadcast's callback for type: {type} is empty, cannot register the broadcast.");
+                UnityEngine.Debug.LogWarning($"[BroadcastRoom] Registering broadcast's callback for type: {type} is empty, cannot register the broadcast.");
                 return;
             }
             if (_broadcastCallbacks.ContainsKey(type))
             {
-                Debug.LogWarning($"[BroadcastRoom] Registering broadcast type: {type} was registered, it will replacing old callback.");
+                UnityEngine.Debug.LogWarning($"[BroadcastRoom] Registering broadcast type: {type} was registered, it will replacing old callback.");
             }
             _broadcastCallbacks[type] = callback;
         }
@@ -77,7 +77,7 @@ namespace VEServicesClient
         {
             if (!_broadcastCallbacks.Remove(type))
             {
-                Debug.LogWarning($"[BroadcastRoom] Cannot unregistering broadcast, the type: {type} was not registered.");
+                UnityEngine.Debug.LogWarning($"[BroadcastRoom] Cannot unregistering broadcast, the type: {type} was not registered.");
             }
         }
     }

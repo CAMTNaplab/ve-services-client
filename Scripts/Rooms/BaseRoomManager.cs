@@ -1,7 +1,6 @@
 using Colyseus;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using UnityEngine;
 
 namespace VEServicesClient
 {
@@ -53,7 +52,7 @@ namespace VEServicesClient
             }
             catch (System.Exception ex)
             {
-                Debug.LogException(ex);
+                UnityEngine.Debug.LogException(ex);
                 Room = null;
                 return false;
             }
@@ -69,7 +68,7 @@ namespace VEServicesClient
             }
             catch (System.Exception ex)
             {
-                Debug.LogException(ex);
+                UnityEngine.Debug.LogException(ex);
                 Room = null;
                 return false;
             }
@@ -84,7 +83,7 @@ namespace VEServicesClient
             }
             catch (System.Exception ex)
             {
-                Debug.LogException(ex);
+                UnityEngine.Debug.LogException(ex);
                 Room = null;
             }
         }
