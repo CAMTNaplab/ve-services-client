@@ -42,7 +42,7 @@ namespace VEServicesClient
                 form.AddBinaryData("file", file, "file.wav", "audio/x-wav");
             form.AddField(nameof(playListId), playListId);
 
-            UnityWebRequest webRequest = UnityWebRequest.Post(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/upload"), form);
+            UnityWebRequest webRequest = UnityWebRequest.Post(RestClient.GetUrl(ClientInstance.Instance.GetApiAddress(), "/media/upload"), form);
             webRequest.certificateHandler = new SimpleWebRequestCert();
             webRequest.SetRequestHeader("Authorization", "Bearer " + ClientInstance.MediaUserToken);
 

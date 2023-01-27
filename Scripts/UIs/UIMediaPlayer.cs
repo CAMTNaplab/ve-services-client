@@ -12,8 +12,8 @@ namespace VEServicesClient
         public Slider seekSlider;
         public Slider volumeSlider;
         public UIMediaList mediaList;
-        protected float dirtyLastRespTime;
-        protected string dirtyUrl;
+        protected float _lastRespTime;
+        protected string _url;
 
         protected VideoRenderMode defaultSourceRenderMode;
         protected RenderTexture defaultSourceRenderTexture;
@@ -29,63 +29,99 @@ namespace VEServicesClient
                     mediaPlayer.Stop();
                     if (source.avProPlayer != null)
                         source.avProPlayer.AudioMuted = false;
-                    ClientInstance.Instance.MediaRoom.SendSub(source.playListId).RunSynchronously();
+                    ClientInstance.Instance.MediaRoom.SendSub(source.playListId);
                 }
                 source = value;
                 if (source != null)
                 {
+                    _url = string.Empty;
                     if (source.avProPlayer != null)
                         source.avProPlayer.AudioMuted = true;
-                    ClientInstance.Instance.MediaRoom.SendSub(source.playListId).RunSynchronously();
+                    ClientInstance.Instance.MediaRoom.SendSub(source.playListId);
                     if (mediaList)
                         mediaList.Load(source.playListId);
+                    Instance_onResp(source.LastResp);
                 }
             }
         }
 
         protected void OnEnable()
         {
+            mediaPlayer.Events.AddListener(AVProMediaPlayer_HandleEvent);
+            MediaRoom.onResp += Instance_onResp;
             if (seekSlider)
                 seekSlider.onValueChanged.AddListener(OnSeekSliderValueChanged);
             if (volumeSlider)
                 volumeSlider.onValueChanged.AddListener(OnVolumeSliderValueChanged);
-            mediaPlayer.Events.AddListener(AVProMediaPlayer_HandleEvent);
         }
 
         protected void OnDisable()
         {
+            mediaPlayer.Events.RemoveListener(AVProMediaPlayer_HandleEvent);
+            MediaRoom.onResp -= Instance_onResp;
             if (seekSlider)
                 seekSlider.onValueChanged.RemoveListener(OnSeekSliderValueChanged);
             if (volumeSlider)
                 volumeSlider.onValueChanged.RemoveListener(OnVolumeSliderValueChanged);
-            mediaPlayer.Events.RemoveListener(AVProMediaPlayer_HandleEvent);
             Source = null;
         }
 
-        private void Instance_onUploadVideo()
+        protected virtual void AVProMediaPlayer_HandleEvent(RenderHeads.Media.AVProVideo.MediaPlayer mediaPlayer, RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType eventType, RenderHeads.Media.AVProVideo.ErrorCode code)
         {
-            if (mediaList)
-                mediaList.Load(source.playListId);
+            if (eventType != RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType.ReadyToPlay)
+                return;
+            UpdatePlayer();
         }
 
-        private void Instance_onDeleteVideo()
+        protected virtual void Instance_onResp(MediaResp resp)
         {
-            if (mediaList)
-                mediaList.Load(source.playListId);
+            if (resp.playListId != source.playListId)
+                return;
+            if (_url != source.CurrentVideoUrl)
+            {
+                _url = source.CurrentVideoUrl;
+                mediaPlayer.OpenMedia(new RenderHeads.Media.AVProVideo.MediaPath(source.CurrentVideoUrl, RenderHeads.Media.AVProVideo.MediaPathType.AbsolutePathOrURL), false);
+            }
+            else
+            {
+                UpdatePlayer();
+            }
+        }
+
+        protected virtual void UpdatePlayer()
+        {
+            if (mediaPlayer.Control != null && Mathf.Abs((float)mediaPlayer.Control.GetCurrentTime() - source.LastResp.time) > 1f)
+            {
+                mediaPlayer.Control.Seek(source.LastResp.time);
+            }
+            if (source.LastResp.isPlaying)
+            {
+                mediaPlayer.Play();
+            }
+            else if (source.LastResp.time <= 0f)
+            {
+                mediaPlayer.Stop();
+            }
+            else
+            {
+                mediaPlayer.Pause();
+            }
+            mediaPlayer.AudioVolume = source.LastResp.volume;
         }
 
         protected void Update()
         {
-            if (source == null)
+            if (source == null || source.LastResp == null)
                 return;
-            if (dirtyLastRespTime != source.LastRespTime || source.LastResp.isPlaying)
+
+            if (_lastRespTime != source.LastRespTime || source.LastResp.isPlaying)
             {
-                dirtyLastRespTime = source.LastRespTime;
+                _lastRespTime = source.LastRespTime;
                 if (seekSlider != null)
                 {
                     seekSlider.minValue = 0;
-                    seekSlider.maxValue = (float)source.LastResp.duration;
-                    seekSlider.SetValueWithoutNotify((float)source.LastResp.time + Time.unscaledTime - source.LastRespTime);
+                    seekSlider.maxValue = source.LastResp.duration;
+                    seekSlider.SetValueWithoutNotify(source.LastResp.time + Time.unscaledTime - source.LastRespTime);
                 }
                 if (volumeSlider != null)
                 {
@@ -93,11 +129,6 @@ namespace VEServicesClient
                     volumeSlider.maxValue = 1;
                     volumeSlider.SetValueWithoutNotify(source.LastResp.volume);
                 }
-            }
-            if (dirtyUrl != source.CurrentVideoUrl)
-            {
-                dirtyUrl = source.CurrentVideoUrl;
-                mediaPlayer.OpenMedia(new RenderHeads.Media.AVProVideo.MediaPath(source.CurrentVideoUrl, RenderHeads.Media.AVProVideo.MediaPathType.AbsolutePathOrURL), false);
             }
         }
 
@@ -157,9 +188,7 @@ namespace VEServicesClient
 
             if (FileBrowser.Success)
             {
-                var splitedPath = FileBrowser.Result[0].Split('.');
-                byte[] bytes = FileBrowserHelpers.ReadBytesFromFile(FileBrowser.Result[0]);
-                MediaService.UploadMedia(source.playListId, bytes, splitedPath[splitedPath.Length - 1]);
+                UploadVideo(FileBrowser.Result[0]);
             }
             else
             {
@@ -167,24 +196,14 @@ namespace VEServicesClient
             }
         }
 
-        protected virtual void AVProMediaPlayer_HandleEvent(RenderHeads.Media.AVProVideo.MediaPlayer mediaPlayer, RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType eventType, RenderHeads.Media.AVProVideo.ErrorCode code)
+        public async void UploadVideo(string path)
         {
-            if (eventType == RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType.ReadyToPlay)
-            {
-                mediaPlayer.Control.Seek(source.LastResp.time);
-                if (source.LastResp.isPlaying)
-                {
-                    mediaPlayer.Play();
-                }
-                else if (source.LastResp.time <= 0f)
-                {
-                    mediaPlayer.Stop();
-                }
-                else
-                {
-                    mediaPlayer.Pause();
-                }
-            }
+            byte[] bytes = FileBrowserHelpers.ReadBytesFromFile(path);
+            var splitedPath = FileBrowser.Result[0].Split('.');
+            await MediaService.UploadMedia(source.playListId, bytes, splitedPath[splitedPath.Length - 1]);
+            // Reload video list
+            if (mediaList)
+                mediaList.Load(source.playListId);
         }
     }
 }

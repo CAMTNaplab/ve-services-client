@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Video;
 
@@ -77,6 +78,11 @@ namespace VEServicesClient
                 videoPlayer.prepareCompleted += VideoPlayer_PrepareCompleted;
             if (avProPlayer != null)
                 avProPlayer.Events.AddListener(AVProMediaPlayer_HandleEvent);
+            // Wait until it is connected to media room
+            while (ClientInstance.Instance.MediaRoom == null || !ClientInstance.Instance.MediaRoom.IsConnected)
+            {
+                await Task.Yield();
+            }
             await ClientInstance.Instance.MediaRoom.SendSub(playListId);
         }
 
@@ -93,6 +99,7 @@ namespace VEServicesClient
         {
             if (!resp.playListId.Equals(playListId))
                 return;
+
             CurrentMediaId = resp.mediaId;
             SetVolume(resp.volume);
             if (string.IsNullOrEmpty(resp.filePath))
@@ -107,42 +114,14 @@ namespace VEServicesClient
             else
             {
                 // Prepare data to play video
-                var url = ClientInstance.Instance.GetMediaContentAddress() + resp.filePath.Substring(1);
-
-                // AVPro
-                if (avProPlayer != null)
+                var url = ClientInstance.Instance.GetMediaContentAddress() + resp.filePath;
+                if (!url.Equals(_url))
                 {
-                    if (_prepared)
-                    {
-                        if (avProPlayer.Control.IsPlaying())
-                            avProPlayer.Play();
-                        else
-                            avProPlayer.Pause();
-                    }
-                    if (!url.Equals(_url) || System.Math.Abs(resp.time - avProPlayer.Control.GetCurrentTime()) >= 1 || avProPlayer.Control.GetCurrentTime() <= 0)
-                    {
-                        _url = url;
-                        _prepared = false;
-                        avProPlayer.OpenMedia(new RenderHeads.Media.AVProVideo.MediaPath(_url, RenderHeads.Media.AVProVideo.MediaPathType.AbsolutePathOrURL), false);
-                    }
+                    PreparePlayer(url);
                 }
-                // Unity's video player
-                else if (videoPlayer != null)
+                else if (_prepared)
                 {
-                    if (_prepared)
-                    {
-                        if (resp.isPlaying)
-                            videoPlayer.Play();
-                        else
-                            videoPlayer.Pause();
-                    }
-                    if (!url.Equals(videoPlayer.url) || System.Math.Abs(resp.time - videoPlayer.time) >= 1 || videoPlayer.time <= 0)
-                    {
-                        _url = url;
-                        _prepared = false;
-                        videoPlayer.url = _url;
-                        videoPlayer.Prepare();
-                    }
+                    UpdatePlayer();
                 }
             }
             LastResp = resp;
@@ -151,42 +130,78 @@ namespace VEServicesClient
 
         protected virtual void VideoPlayer_PrepareCompleted(VideoPlayer source)
         {
-            source.time = LastResp.time;
             SetVolume(LastResp.volume);
-            if (LastResp.isPlaying)
-            {
-                source.Play();
-            }
-            else if (LastResp.time <= 0f)
-            {
-                source.Stop();
-            }
-            else
-            {
-                source.Pause();
-            }
+            UpdatePlayer();
             _prepared = true;
         }
 
         protected virtual void AVProMediaPlayer_HandleEvent(RenderHeads.Media.AVProVideo.MediaPlayer source, RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType eventType, RenderHeads.Media.AVProVideo.ErrorCode code)
         {
-            if (eventType == RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType.ReadyToPlay)
+            if (eventType != RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType.ReadyToPlay)
+                return;
+            SetVolume(LastResp.volume);
+            UpdatePlayer();
+            _prepared = true;
+        }
+
+        protected virtual void PreparePlayer(string url)
+        {
+            _url = url;
+            _prepared = false;
+            // AVPro
+            if (avProPlayer != null)
             {
-                source.Control.Seek(LastResp.time);
-                SetVolume(LastResp.volume);
+                avProPlayer.OpenMedia(new RenderHeads.Media.AVProVideo.MediaPath(_url, RenderHeads.Media.AVProVideo.MediaPathType.AbsolutePathOrURL), false);
+            }
+            // Unity's video player
+            else if (videoPlayer != null)
+            {
+                videoPlayer.url = _url;
+                videoPlayer.Prepare();
+            }
+        }
+
+        protected virtual void UpdatePlayer()
+        {
+            // AVPro
+            if (avProPlayer != null)
+            {
+                if (Mathf.Abs((float)avProPlayer.Control.GetCurrentTime() - LastResp.time) > 1f)
+                {
+                    avProPlayer.Control.Seek(LastResp.time);
+                }
                 if (LastResp.isPlaying)
                 {
-                    source.Play();
+                    avProPlayer.Play();
                 }
                 else if (LastResp.time <= 0f)
                 {
-                    source.Stop();
+                    avProPlayer.Stop();
                 }
                 else
                 {
-                    source.Pause();
+                    avProPlayer.Pause();
                 }
-                _prepared = true;
+            }
+            // Unity's video player
+            else if (videoPlayer != null)
+            {
+                if (Mathf.Abs((float)videoPlayer.time - LastResp.time) > 1f)
+                {
+                    videoPlayer.time = LastResp.time;
+                }
+                if (LastResp.isPlaying)
+                {
+                    videoPlayer.Play();
+                }
+                else if (LastResp.time <= 0f)
+                {
+                    videoPlayer.Stop();
+                }
+                else
+                {
+                    videoPlayer.Pause();
+                }
             }
         }
 

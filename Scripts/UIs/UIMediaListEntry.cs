@@ -10,6 +10,8 @@ namespace VEServicesClient
         public Text textTitle;
         public Text textDuration;
         public Text textSortOrder;
+        public GameObject[] currentSigns;
+        public UIMediaList List { get; set; }
         public VideoData Data { get; set; }
 
         void Update()
@@ -28,6 +30,14 @@ namespace VEServicesClient
 
             if (textSortOrder)
                 textSortOrder.text = Data.sortOrder.ToString("N2");
+
+            if (currentSigns != null)
+            {
+                foreach (var obj in currentSigns)
+                {
+                    obj.SetActive(MediaRoom.Resps.TryGetValue(Data.playListId, out var resp) && resp.mediaId == Data.id);
+                }
+            }
         }
 
         public async void OnClickSwitch()
@@ -38,6 +48,7 @@ namespace VEServicesClient
         public async void OnClickDelete()
         {
             await MediaService.DeleteMedia(Data.id);
+            Destroy(gameObject);
         }
     }
 }
