@@ -11,11 +11,14 @@ namespace VEServicesClient
         public string address = "localhost:2567";
         public bool secured = false;
         public string secret = "secret";
+        public AudioSource inputAudioSource;
+        public string[] iceServerUrls = new[] { "stun:stun.l.google.com:19302" };
 
         public BroadcastRoom BroadcastRoom { get; private set; } = null;
         public ChatRoom ChatRoom { get; private set; } = null;
         public ListingRoom ListingRoom { get; private set; } = null;
         public MediaRoom MediaRoom { get; private set; } = null;
+        public WebRTCSignalingRoom SignalingRoom { get; private set; } = null;
         public static string ChatUserToken { get; set; }
         public static string MediaUserToken { get; set; }
 
@@ -140,6 +143,27 @@ namespace VEServicesClient
             {
                 await MediaRoom.Leave();
                 MediaRoom = null;
+            }
+        }
+
+        public async Task<WebRTCSignalingRoom> JoinSignalingRoom()
+        {
+            if (SignalingRoom != null)
+                await SignalingRoom.Leave();
+            SignalingRoom = new WebRTCSignalingRoom();
+            if (await SignalingRoom.Join())
+            {
+                return SignalingRoom;
+            }
+            return null;
+        }
+
+        public async Task LeaveSignalingRoom()
+        {
+            if (SignalingRoom != null)
+            {
+                await SignalingRoom.Leave();
+                SignalingRoom = null;
             }
         }
     }
