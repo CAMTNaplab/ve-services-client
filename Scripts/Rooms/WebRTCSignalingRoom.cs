@@ -243,6 +243,28 @@ namespace VEServicesClient
             offeredPeers.Remove(sessionId);
         }
 
+        public List<AudioSource> GetAudioSources(string sessionId)
+        {
+            var result = new List<AudioSource>();
+            var trackIds = new List<string>(peerAudioOutputSources[sessionId].Keys);
+            foreach (var trackId in trackIds)
+            {
+                if (peerAudioOutputSources[sessionId][trackId] != null)
+                    result.Add(peerAudioOutputSources[sessionId][trackId]);
+            }
+            return result;
+        }
+
+        public void SetAudioSourcesPosition(string sessionId, Vector3 position)
+        {
+            var trackIds = new List<string>(peerAudioOutputSources[sessionId].Keys);
+            foreach (var trackId in trackIds)
+            {
+                if (peerAudioOutputSources[sessionId][trackId] != null)
+                    peerAudioOutputSources[sessionId][trackId].transform.position = position;
+            }
+        }
+
         private async void ProceedPeerData(string sessionId)
         {
             if (!peers.TryGetValue(sessionId, out var peer))
