@@ -13,6 +13,7 @@ namespace VEServicesClient
         public string secret = "secret";
         public AudioSource inputAudioSource;
         public string[] iceServerUrls = new[] { "stun:stun.l.google.com:19302" };
+        public float voipSpeakDistance = 10f;
 
         public BroadcastRoom BroadcastRoom { get; private set; } = null;
         public ChatRoom ChatRoom { get; private set; } = null;

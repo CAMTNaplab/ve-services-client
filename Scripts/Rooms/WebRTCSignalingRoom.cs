@@ -42,6 +42,10 @@ namespace VEServicesClient
         private Dictionary<string, RTCPeerConnection> peers = new Dictionary<string, RTCPeerConnection>();
         private Dictionary<string, MediaStream> peerReceiveStreams = new Dictionary<string, MediaStream>();
         private Dictionary<string, Dictionary<string, AudioSource>> peerAudioOutputSources = new Dictionary<string, Dictionary<string, AudioSource>>();
+        private Dictionary<string, List<RTCIceCandidate>> peerIceCandidates = new Dictionary<string, List<RTCIceCandidate>>();
+        private Dictionary<string, List<RTCSessionDescription>> peerDescs = new Dictionary<string, List<RTCSessionDescription>>();
+        private HashSet<string> offeredPeers = new HashSet<string>();
+
         private AudioClip audioInputClip;
         private AudioStreamTrack audioInputTrack;
         private MediaStream sendStream;
@@ -105,15 +109,15 @@ namespace VEServicesClient
             return config;
         }
 
-        public async void OnAddPeer(string sessionId, bool shouldCreateOffer)
+        public void CreatePeer(string sessionId)
         {
             if (peers.ContainsKey(sessionId))
             {
-                Debug.LogWarning($"Already connected to peer: {sessionId}");
+                Debug.LogWarning($"Already added peer for: {sessionId}");
                 return;
             }
 
-            // Create new peer connection
+            // Create new peer connection from this to another
             var config = CreateRTCConfiguration();
             var peerConnection = new RTCPeerConnection(ref config);
             peerConnection.OnIceCandidate = async (RTCIceCandidate candidate) =>
@@ -131,7 +135,7 @@ namespace VEServicesClient
             peerConnection.AddTrack(audioInputTrack, sendStream);
             peers[sessionId] = peerConnection;
 
-            // Create media receive stream
+            // Create media receive stream from another to this
             var peerMediaStream = new MediaStream();
             peerMediaStream.OnAddTrack = (trackEvent) =>
             {
@@ -162,42 +166,52 @@ namespace VEServicesClient
                 }
             };
             peerReceiveStreams[sessionId] = peerMediaStream;
-
-            if (shouldCreateOffer)
-            {
-                Debug.Log($"Creating RTC offer to {sessionId}");
-                var createOfferAsyncOp = peerConnection.CreateOffer();
-
-                while (!createOfferAsyncOp.IsDone)
-                {
-                    await Task.Yield();
-                }
-
-                if (createOfferAsyncOp.IsError)
-                {
-                    Debug.LogError($"Error when create offer: {createOfferAsyncOp.Error}");
-                    return;
-                }
-
-                var desc = createOfferAsyncOp.Desc;
-                var setLocalDescAsyncOp = peerConnection.SetLocalDescription(ref desc);
-
-                while (!setLocalDescAsyncOp.IsDone)
-                {
-                    await Task.Yield();
-                }
-
-                if (setLocalDescAsyncOp.IsError)
-                {
-                    Debug.LogError($"Error when set local desc, after create offer: {setLocalDescAsyncOp.Error}");
-                    return;
-                }
-
-                await SendDesc(sessionId, desc);
-            }
         }
 
-        public void OnRemovePeer(string sessionId)
+        public async void CreateOffer(string sessionId)
+        {
+            if (offeredPeers.Contains(sessionId))
+                return;
+
+            if (!peers.TryGetValue(sessionId, out var peer))
+            {
+                CreatePeer(sessionId);
+                peer = peers[sessionId];
+            }
+
+            // Offer another peer to receive stream from this
+            Debug.Log($"Creating RTC offer to {sessionId}");
+            var createOfferAsyncOp = peer.CreateOffer();
+
+            while (!createOfferAsyncOp.IsDone)
+            {
+                await Task.Yield();
+            }
+
+            if (createOfferAsyncOp.IsError)
+            {
+                Debug.LogError($"Error when create offer: {createOfferAsyncOp.Error}");
+                return;
+            }
+
+            var desc = createOfferAsyncOp.Desc;
+            var setLocalDescAsyncOp = peer.SetLocalDescription(ref desc);
+
+            while (!setLocalDescAsyncOp.IsDone)
+            {
+                await Task.Yield();
+            }
+
+            if (setLocalDescAsyncOp.IsError)
+            {
+                Debug.LogError($"Error when set local desc, after create offer: {setLocalDescAsyncOp.Error}");
+                return;
+            }
+
+            await SendDesc(sessionId, desc);
+        }
+
+        public void RemovePeer(string sessionId)
         {
             if (peerReceiveStreams.TryGetValue(sessionId, out var peerReceiveStream))
             {
@@ -210,7 +224,8 @@ namespace VEServicesClient
                 var trackIds = new List<string>(peerAudioOutputSources[sessionId].Keys);
                 foreach (var trackId in trackIds)
                 {
-                    Object.Destroy(peerAudioOutputSources[sessionId][trackId].gameObject);
+                    if (peerAudioOutputSources[sessionId][trackId] != null)
+                        Object.Destroy(peerAudioOutputSources[sessionId][trackId].gameObject);
                     peerAudioOutputSources[sessionId].Remove(trackId);
                 }
                 peerAudioOutputSources.Remove(sessionId);
@@ -222,66 +237,124 @@ namespace VEServicesClient
                 peer.Dispose();
                 peers.Remove(sessionId);
             }
+
+            peerIceCandidates.Remove(sessionId);
+            peerDescs.Remove(sessionId);
+            offeredPeers.Remove(sessionId);
+        }
+
+        private async void ProceedPeerData(string sessionId)
+        {
+            if (!peers.TryGetValue(sessionId, out var peer))
+            {
+                CreatePeer(sessionId);
+                peer = peers[sessionId];
+            }
+
+            if (peerIceCandidates.TryGetValue(sessionId, out var candidateList))
+            {
+                while (candidateList.Count > 0)
+                {
+                    RTCIceCandidate candidate = null;
+                    lock (candidateList)
+                    {
+                        candidate = candidateList[0];
+                        candidateList.RemoveAt(0);
+                    }
+                    if (candidate == null)
+                        continue;
+                    peer.AddIceCandidate(candidate);
+                }
+            }
+
+            if (peerDescs.TryGetValue(sessionId, out var descList))
+            {
+                while (descList.Count > 0)
+                {
+                    RTCSessionDescription? entry;
+                    lock (descList)
+                    {
+                        entry = descList[0];
+                        descList.RemoveAt(0);
+                    }
+                    if (!entry.HasValue)
+                        continue;
+
+                    var desc = entry.Value;
+                    var setRemoteDescAsyncOp = peer.SetRemoteDescription(ref desc);
+                    while (!setRemoteDescAsyncOp.IsDone)
+                    {
+                        await Task.Yield();
+                    }
+
+                    if (desc.type != RTCSdpType.Offer)
+                        continue;
+
+                    Debug.Log($"Creating RTC answer to {sessionId}");
+                    var createAnswerAsyncOp = peer.CreateAnswer();
+
+                    while (!createAnswerAsyncOp.IsDone)
+                    {
+                        await Task.Yield();
+                    }
+
+                    if (createAnswerAsyncOp.IsError)
+                    {
+                        Debug.LogError($"Error when create answer: {createAnswerAsyncOp.Error}");
+                        continue;
+                    }
+
+                    desc = createAnswerAsyncOp.Desc;
+                    var setLocalDescAsyncOp = peer.SetLocalDescription(ref desc);
+
+                    while (!setLocalDescAsyncOp.IsDone)
+                    {
+                        await Task.Yield();
+                    }
+
+                    if (setLocalDescAsyncOp.IsError)
+                    {
+                        Debug.LogError($"Error when set local desc, after create answer: {setLocalDescAsyncOp.Error}");
+                        continue;
+                    }
+
+                    await SendDesc(sessionId, desc);
+                }
+            }
         }
 
         private void OnCandidate(OnCandidateMsg data)
         {
             var sessionId = data.sessionId;
-            var peer = peers[sessionId];
             var info = new RTCIceCandidateInit();
             info.candidate = data.candidate;
             info.sdpMid = data.sdpMid;
             if (data.sdpMLineIndex.HasValue)
                 info.sdpMLineIndex = data.sdpMLineIndex;
-            peer.AddIceCandidate(new RTCIceCandidate(info));
+            if (!peerIceCandidates.TryGetValue(sessionId, out var list))
+            {
+                list = new List<RTCIceCandidate>();
+                peerIceCandidates[sessionId] = list;
+            }
+            lock (list)
+                list.Add(new RTCIceCandidate(info));
+            ProceedPeerData(sessionId);
         }
 
-        private async void OnDesc(OnDescMsg data)
+        private void OnDesc(OnDescMsg data)
         {
             var sessionId = data.sessionId;
-            var peerConnection = peers[sessionId];
             var desc = new RTCSessionDescription();
             desc.type = (RTCSdpType)data.type;
             desc.sdp = data.sdp;
-            var setRemoteDescAsyncOp = peerConnection.SetRemoteDescription(ref desc);
-
-            while (!setRemoteDescAsyncOp.IsDone)
+            if (!peerDescs.TryGetValue(sessionId, out var list))
             {
-                await Task.Yield();
+                list = new List<RTCSessionDescription>();
+                peerDescs[sessionId] = list;
             }
-
-            if (desc.type != RTCSdpType.Offer)
-                return;
-
-            Debug.Log($"Creating RTC answer to {sessionId}");
-            var createAnswerAsyncOp = peerConnection.CreateAnswer();
-
-            while (!createAnswerAsyncOp.IsDone)
-            {
-                await Task.Yield();
-            }
-
-            if (createAnswerAsyncOp.IsError)
-            {
-                Debug.LogError($"Error when create answer: {createAnswerAsyncOp.Error}");
-                return;
-            }
-
-            desc = createAnswerAsyncOp.Desc;
-            var setLocalDescAsyncOp = peerConnection.SetLocalDescription(ref desc);
-
-            while (!setLocalDescAsyncOp.IsDone)
-            {
-                await Task.Yield();
-            }
-
-            if (setLocalDescAsyncOp.IsError)
-            {
-                Debug.LogError($"Error when set local desc, after create answer: {setLocalDescAsyncOp.Error}");
-                return;
-            }
-
-            await SendDesc(sessionId, desc);
+            lock (list)
+                list.Add(desc);
+            ProceedPeerData(sessionId);
         }
 
         public async Task SendCandidate(string sessionId, RTCIceCandidateInit candidateInit)
