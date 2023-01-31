@@ -24,19 +24,6 @@ namespace VEServicesClient
         public static string MediaUserToken { get; set; }
 
 
-
-        private ColyseusClient _client;
-        public ColyseusClient Client
-        {
-            get
-            {
-                if (_client == null)
-                    _client = new ColyseusClient(GetWsAddress());
-                _client.Settings.useSecureProtocol = secured;
-                return _client;
-            }
-        }
-
         private void Awake()
         {
             if (Instance != null)

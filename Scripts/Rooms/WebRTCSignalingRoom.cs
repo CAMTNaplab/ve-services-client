@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace VEServicesClient
 {
-    public class WebRTCSignalingRoom : BaseRoomManager<WebRTCSignalingRoomState>
+    public class WebRTCSignalingRoom : BaseRoomManager<object>
     {
         [System.Serializable]
         public class OnCandidateMsg
@@ -38,6 +38,8 @@ namespace VEServicesClient
                 sdp = string.Empty;
             }
         }
+
+        public bool IsSpeaking { get; private set; }
 
         private Dictionary<string, RTCPeerConnection> peers = new Dictionary<string, RTCPeerConnection>();
         private Dictionary<string, MediaStream> peerReceiveStreams = new Dictionary<string, MediaStream>();
@@ -85,6 +87,21 @@ namespace VEServicesClient
             Room.OnMessage<OnCandidateMsg>("candidate", OnCandidate);
             Room.OnMessage<OnDescMsg>("desc", OnDesc);
 
+            sendStream = new MediaStream();
+            audioInputTrack = new AudioStreamTrack(ClientInstance.Instance.inputAudioSource);
+        }
+
+        public void StartMicRecord()
+        {
+            if (IsSpeaking)
+                return;
+
+            if (Microphone.devices.Length == 0)
+            {
+                Debug.LogError("Cannot start mic record, there is no mic devices");
+                return;
+            }
+
             micDeviceName = Microphone.devices[0];
             audioInputClip = Microphone.Start(micDeviceName, true, lengthSeconds, samplingFrequency);
             // set the latency to “0” samples before the audio starts to play.
@@ -92,10 +109,21 @@ namespace VEServicesClient
 
             ClientInstance.Instance.inputAudioSource.loop = true;
             ClientInstance.Instance.inputAudioSource.clip = audioInputClip;
+            ClientInstance.Instance.inputAudioSource.volume = 1f;
             ClientInstance.Instance.inputAudioSource.Play();
 
-            audioInputTrack = new AudioStreamTrack(ClientInstance.Instance.inputAudioSource);
-            sendStream = new MediaStream();
+            IsSpeaking = true;
+        }
+
+        public void StopMicRecord()
+        {
+            if (!IsSpeaking)
+                return;
+
+            ClientInstance.Instance.inputAudioSource.Stop();
+            Microphone.End(micDeviceName);
+
+            IsSpeaking = false;
         }
 
         private static RTCConfiguration CreateRTCConfiguration()
@@ -172,6 +200,7 @@ namespace VEServicesClient
         {
             if (offeredPeers.Contains(sessionId))
                 return;
+            offeredPeers.Add(sessionId);
 
             if (!peers.TryGetValue(sessionId, out var peer))
             {
@@ -190,7 +219,7 @@ namespace VEServicesClient
 
             if (createOfferAsyncOp.IsError)
             {
-                Debug.LogError($"Error when create offer: {createOfferAsyncOp.Error}");
+                Debug.LogError($"Error when create offer: {createOfferAsyncOp.Error.errorType} {createOfferAsyncOp.Error.message}");
                 return;
             }
 
@@ -204,7 +233,7 @@ namespace VEServicesClient
 
             if (setLocalDescAsyncOp.IsError)
             {
-                Debug.LogError($"Error when set local desc, after create offer: {setLocalDescAsyncOp.Error}");
+                Debug.LogError($"Error when set local desc, after create offer: {setLocalDescAsyncOp.Error.errorType} {setLocalDescAsyncOp.Error.message}");
                 return;
             }
 
@@ -246,22 +275,26 @@ namespace VEServicesClient
         public List<AudioSource> GetAudioSources(string sessionId)
         {
             var result = new List<AudioSource>();
-            var trackIds = new List<string>(peerAudioOutputSources[sessionId].Keys);
+            if (!peerAudioOutputSources.TryGetValue(sessionId, out var dict))
+                return result;
+            var trackIds = new List<string>(dict.Keys);
             foreach (var trackId in trackIds)
             {
-                if (peerAudioOutputSources[sessionId][trackId] != null)
-                    result.Add(peerAudioOutputSources[sessionId][trackId]);
+                if (dict[trackId] != null)
+                    result.Add(dict[trackId]);
             }
             return result;
         }
 
         public void SetAudioSourcesPosition(string sessionId, Vector3 position)
         {
-            var trackIds = new List<string>(peerAudioOutputSources[sessionId].Keys);
+            if (!peerAudioOutputSources.TryGetValue(sessionId, out var dict))
+                return;
+            var trackIds = new List<string>(dict.Keys);
             foreach (var trackId in trackIds)
             {
-                if (peerAudioOutputSources[sessionId][trackId] != null)
-                    peerAudioOutputSources[sessionId][trackId].transform.position = position;
+                if (dict[trackId] != null)
+                    dict[trackId].transform.position = position;
             }
         }
 
@@ -322,7 +355,7 @@ namespace VEServicesClient
 
                     if (createAnswerAsyncOp.IsError)
                     {
-                        Debug.LogError($"Error when create answer: {createAnswerAsyncOp.Error}");
+                        Debug.LogError($"Error when create answer: {createAnswerAsyncOp.Error.errorType} {createAnswerAsyncOp.Error.message}");
                         continue;
                     }
 
@@ -336,7 +369,7 @@ namespace VEServicesClient
 
                     if (setLocalDescAsyncOp.IsError)
                     {
-                        Debug.LogError($"Error when set local desc, after create answer: {setLocalDescAsyncOp.Error}");
+                        Debug.LogError($"Error when set local desc, after create answer: {createAnswerAsyncOp.Error.errorType} {setLocalDescAsyncOp.Error.message}");
                         continue;
                     }
 

@@ -15,12 +15,6 @@ namespace VEServicesClient
             get { return Room != null && Room.colyseusConnection != null && Room.colyseusConnection.IsOpen; }
         }
 
-        public ColyseusClient Client
-        {
-            get { return ClientInstance.Instance.Client; }
-        }
-
-        /*
         private ColyseusClient _client;
         public ColyseusClient Client
         {
@@ -32,7 +26,6 @@ namespace VEServicesClient
                 return _client;
             }
         }
-        */
 
         public BaseRoomManager(string roomName, Dictionary<string, object> options)
         {

@@ -1,14 +1,25 @@
 using LiteNetLibManager;
 using UnityEngine;
-using VECY;
 
 namespace VEServicesClient
 {
     public class WebRTCPeerPlayer : LiteNetLibBehaviour
     {
+        public static WebRTCPeerPlayer Mine { get; private set; }
         public Transform audioSourceTransform;
-        [SyncField]
+        [SyncField(
+            alwaysSync = true,
+            clientDeliveryMethod = LiteNetLib.DeliveryMethod.ReliableOrdered,
+            deliveryMethod = LiteNetLib.DeliveryMethod.ReliableOrdered,
+            syncMode = LiteNetLibSyncField.SyncMode.ClientMulticast)]
         public string sessionId;
+
+        [SyncField(
+            alwaysSync = true,
+            clientDeliveryMethod = LiteNetLib.DeliveryMethod.ReliableOrdered,
+            deliveryMethod = LiteNetLib.DeliveryMethod.ReliableOrdered,
+            syncMode = LiteNetLibSyncField.SyncMode.ClientMulticast)]
+        public bool isSpeaking;
 
         private void Start()
         {
@@ -23,22 +34,31 @@ namespace VEServicesClient
                 if (IsOwnerClient)
                 {
                     sessionId = ClientInstance.Instance.SignalingRoom.SessionId;
+                    isSpeaking = ClientInstance.Instance.SignalingRoom.IsSpeaking;
+                    Mine = this;
                 }
-                else
+                else if (!string.IsNullOrWhiteSpace(sessionId) && Mine != null)
                 {
-                    if (string.IsNullOrWhiteSpace(sessionId))
-                        return;
-                    if (Vector3.Distance(transform.position, VECharacter.Mine.transform.position) <= ClientInstance.Instance.voipSpeakDistance)
+                    if (Vector3.Distance(transform.position, Mine.transform.position) <= ClientInstance.Instance.voipSpeakDistance)
+                    {
                         ClientInstance.Instance.SignalingRoom.CreateOffer(sessionId);
+                    }
                     else
+                    {
                         ClientInstance.Instance.SignalingRoom.RemovePeer(sessionId);
+                    }
                 }
                 if (!string.IsNullOrWhiteSpace(sessionId))
                     ClientInstance.Instance.SignalingRoom.SetAudioSourcesPosition(sessionId, audioSourceTransform.position);
             }
             else
             {
-                sessionId = string.Empty;
+                if (IsOwnerClient)
+                {
+                    sessionId = string.Empty;
+                    isSpeaking = false;
+                    Mine = null;
+                }
             }
         }
     }
