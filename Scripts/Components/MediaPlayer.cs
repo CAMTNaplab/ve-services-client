@@ -44,6 +44,7 @@ namespace VEServicesClient
             MediaRoom.onResp += Instance_onResp;
             if (convertToAvPro && !_avProCreated && videoPlayer != null && avProPlayer == null)
             {
+                // Convert player
                 Renderer renderer = videoPlayer.targetMaterialRenderer;
                 GameObject rendererGameObject = renderer == null ? null : renderer.gameObject;
                 if (rendererGameObject != null)
@@ -54,23 +55,36 @@ namespace VEServicesClient
                     applyToMaterial.Player = avProPlayer;
                     applyToMaterial.MeshRenderer = renderer;
                     applyToMaterial.TexturePropertyName = videoPlayer.targetMaterialProperty;
+                }
 
-                    RenderHeads.Media.AVProVideo.AudioOutput audioOutput;
-                    if (videoPlayer.audioTrackCount > 0)
+                // Convert audio source
+                RenderHeads.Media.AVProVideo.AudioOutput audioOutput = null;
+                if (videoPlayer.audioTrackCount > 0)
+                {
+                    AudioSource audioSource = videoPlayer.GetTargetAudioSource(0);
+                    if (audioSource != null)
                     {
-                        AudioSource audioSource = videoPlayer.GetTargetAudioSource(0);
+                        audioSource.gameObject.SetActive(true);
                         audioOutput = audioSource.gameObject.AddComponent<RenderHeads.Media.AVProVideo.AudioOutput>();
                     }
-                    else
+                }
+                else
+                {
+                    AudioSource audioSource = GetComponentInChildren<AudioSource>(true);
+                    if (audioSource != null)
                     {
-                        AudioSource audioSource = GetComponentInChildren<AudioSource>(true);
+                        audioSource.gameObject.SetActive(true);
                         audioOutput = audioSource.gameObject.AddComponent<RenderHeads.Media.AVProVideo.AudioOutput>();
                     }
+                }
+                if (audioOutput != null)
+                {
                     System.Type type = typeof(RenderHeads.Media.AVProVideo.AudioOutput);
                     FieldInfo fieldInfo = type.GetField("_supportPositionalAudio", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                     fieldInfo.SetValue(audioOutput, true);
                     audioOutput.Player = avProPlayer;
                 }
+
                 _avProCreated = true;
             }
             // Setup events
