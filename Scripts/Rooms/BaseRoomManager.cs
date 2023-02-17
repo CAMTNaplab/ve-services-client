@@ -40,6 +40,7 @@ namespace VEServicesClient
             try
             {
                 Room = await Client.JoinOrCreate<T>(RoomName, Options);
+                Room.OnLeave += Room_OnLeave;
                 SessionId = Room.SessionId;
                 return true;
             }
@@ -56,6 +57,7 @@ namespace VEServicesClient
             try
             {
                 Room = await Client.JoinById<T>(id, Options);
+                Room.OnLeave += Room_OnLeave;
                 SessionId = Room.SessionId;
                 return true;
             }
@@ -64,6 +66,20 @@ namespace VEServicesClient
                 UnityEngine.Debug.LogException(ex);
                 Room = null;
                 return false;
+            }
+        }
+
+        private async void Room_OnLeave(int code)
+        {
+            if (code != 1000)
+            {
+                while (!IsConnected)
+                {
+                    Debug.Log($"Reconnecting {RoomName}");
+                    await Task.Delay(1000);
+                    await Join();
+                    await Task.Delay(5000);
+                }
             }
         }
 
