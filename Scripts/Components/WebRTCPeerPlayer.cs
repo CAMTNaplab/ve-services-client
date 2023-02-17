@@ -41,11 +41,11 @@ namespace VEServicesClient
                 {
                     if (Vector3.Distance(transform.position, Mine.transform.position) <= ClientInstance.Instance.voipSpeakDistance)
                     {
-                        ClientInstance.Instance.SignalingRoom.CreateOffer(sessionId);
+                        ClientInstance.Instance.SignalingRoom.CreateRtcOffer(sessionId);
                     }
                     else
                     {
-                        ClientInstance.Instance.SignalingRoom.RemovePeer(sessionId);
+                        ClientInstance.Instance.SignalingRoom.RemoveRtcPeer(sessionId);
                     }
                 }
                 if (!string.IsNullOrWhiteSpace(sessionId))

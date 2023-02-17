@@ -41,16 +41,16 @@ namespace VEServicesClient
 
         public bool IsSpeaking { get; private set; }
 
-        private Dictionary<string, RTCPeerConnection> peers = new Dictionary<string, RTCPeerConnection>();
-        private Dictionary<string, MediaStream> peerReceiveStreams = new Dictionary<string, MediaStream>();
-        private Dictionary<string, Dictionary<string, AudioSource>> peerAudioOutputSources = new Dictionary<string, Dictionary<string, AudioSource>>();
-        private Dictionary<string, List<RTCIceCandidate>> peerIceCandidates = new Dictionary<string, List<RTCIceCandidate>>();
-        private Dictionary<string, List<RTCSessionDescription>> peerDescs = new Dictionary<string, List<RTCSessionDescription>>();
-        private HashSet<string> offeredPeers = new HashSet<string>();
+        private static Dictionary<string, RTCPeerConnection> rtcPeers = new Dictionary<string, RTCPeerConnection>();
+        private static Dictionary<string, MediaStream> rtcPeerReceiveStreams = new Dictionary<string, MediaStream>();
+        private static Dictionary<string, Dictionary<string, AudioSource>> rtcPeerAudioOutputSources = new Dictionary<string, Dictionary<string, AudioSource>>();
+        private static Dictionary<string, List<RTCIceCandidate>> rtcPeerIceCandidates = new Dictionary<string, List<RTCIceCandidate>>();
+        private static Dictionary<string, List<RTCSessionDescription>> rtcPeerDescs = new Dictionary<string, List<RTCSessionDescription>>();
+        private static HashSet<string> offeredRtcPeers = new HashSet<string>();
 
         private AudioClip audioInputClip;
-        private AudioStreamTrack audioInputTrack;
-        private MediaStream sendStream;
+        private static AudioStreamTrack audioInputTrack;
+        private static MediaStream sendStream;
         private string micDeviceName;
         private int samplingFrequency = 48000;
         private int lengthSeconds = 1;
@@ -62,7 +62,6 @@ namespace VEServicesClient
 
         public override async Task<bool> Join()
         {
-            peers.Clear();
             if (await base.Join())
             {
                 SetupRoom();
@@ -73,7 +72,6 @@ namespace VEServicesClient
 
         public override async Task<bool> JoinById(string id)
         {
-            peers.Clear();
             if (await base.JoinById(id))
             {
                 SetupRoom();
@@ -84,11 +82,21 @@ namespace VEServicesClient
 
         private void SetupRoom()
         {
-            Room.OnMessage<OnCandidateMsg>("candidate", OnCandidate);
-            Room.OnMessage<OnDescMsg>("desc", OnDesc);
+            Room.OnMessage<OnCandidateMsg>("candidate", OnRtcCandidate);
+            Room.OnMessage<OnDescMsg>("desc", OnRtcDesc);
 
+            if (sendStream != null)
+                sendStream.Dispose();
             sendStream = new MediaStream();
+            if (audioInputTrack != null)
+                audioInputTrack.Dispose();
             audioInputTrack = new AudioStreamTrack(ClientInstance.Instance.inputAudioSource);
+            audioInputTrack.Loopback = false;
+            var sessionIds = new List<string>(rtcPeers.Keys);
+            foreach (var sessionId in sessionIds)
+            {
+                RemoveRtcPeer(sessionId);
+            }
         }
 
         public void StartMicRecord()
@@ -137,9 +145,9 @@ namespace VEServicesClient
             return config;
         }
 
-        public void CreatePeer(string sessionId)
+        public void CreateRtcPeer(string sessionId)
         {
-            if (peers.ContainsKey(sessionId))
+            if (rtcPeers.ContainsKey(sessionId))
             {
                 Debug.LogWarning($"Already added peer for: {sessionId}");
                 return;
@@ -147,21 +155,22 @@ namespace VEServicesClient
 
             // Create new peer connection from this to another
             var config = CreateRTCConfiguration();
-            var peerConnection = new RTCPeerConnection(ref config);
-            peerConnection.OnIceCandidate = async (RTCIceCandidate candidate) =>
+            var peer = new RTCPeerConnection(ref config)
             {
-                var info = new RTCIceCandidateInit();
-                info.candidate = candidate.Candidate;
-                info.sdpMid = candidate.SdpMid;
-                info.sdpMLineIndex = candidate.SdpMLineIndex;
-                await SendCandidate(sessionId, info);
+                OnIceCandidate = async (RTCIceCandidate candidate) =>
+                {
+                    var info = new RTCIceCandidateInit();
+                    info.candidate = candidate.Candidate;
+                    info.sdpMid = candidate.SdpMid;
+                    info.sdpMLineIndex = candidate.SdpMLineIndex;
+                    await SendCandidate(sessionId, info);
+                },
+                OnTrack = (RTCTrackEvent trackEvent) =>
+                {
+                    rtcPeerReceiveStreams[sessionId].AddTrack(trackEvent.Track);
+                },
             };
-            peerConnection.OnTrack = (RTCTrackEvent trackEvent) =>
-            {
-                peerReceiveStreams[sessionId].AddTrack(trackEvent.Track);
-            };
-            peerConnection.AddTrack(audioInputTrack, sendStream);
-            peers[sessionId] = peerConnection;
+            rtcPeers[sessionId] = peer;
 
             // Create media receive stream from another to this
             var peerMediaStream = new MediaStream();
@@ -178,35 +187,36 @@ namespace VEServicesClient
                 if (trackEvent.Track is AudioStreamTrack audioTrack)
                 {
                     // Play audio
-                    if (peerAudioOutputSources.ContainsKey(sessionId) && peerAudioOutputSources[sessionId].ContainsKey(trackId))
+                    if (rtcPeerAudioOutputSources.ContainsKey(sessionId) && rtcPeerAudioOutputSources[sessionId].ContainsKey(trackId))
                     {
                         Debug.LogWarning($"Adding audio track for {sessionId}/{trackId} again, it actually should has only one?");
-                        Object.Destroy(peerAudioOutputSources[sessionId][trackId].gameObject);
-                        peerAudioOutputSources[sessionId].Remove(trackId);
+                        Object.Destroy(rtcPeerAudioOutputSources[sessionId][trackId].gameObject);
+                        rtcPeerAudioOutputSources[sessionId].Remove(trackId);
                     }
-                    if (!peerAudioOutputSources.ContainsKey(sessionId))
-                        peerAudioOutputSources.Add(sessionId, new Dictionary<string, AudioSource>());
+                    if (!rtcPeerAudioOutputSources.ContainsKey(sessionId))
+                        rtcPeerAudioOutputSources.Add(sessionId, new Dictionary<string, AudioSource>());
                     var audioOutputSource = new GameObject($"{sessionId}/{trackId}_AudioOutputSource").AddComponent<AudioSource>();
                     audioOutputSource.SetTrack(audioTrack);
                     audioOutputSource.loop = true;
                     audioOutputSource.Play();
-                    peerAudioOutputSources[sessionId][trackId] = audioOutputSource;
+                    rtcPeerAudioOutputSources[sessionId][trackId] = audioOutputSource;
                 }
             };
-            peerReceiveStreams[sessionId] = peerMediaStream;
+            rtcPeerReceiveStreams[sessionId] = peerMediaStream;
         }
 
-        public async void CreateOffer(string sessionId)
+        public async void CreateRtcOffer(string sessionId)
         {
-            if (offeredPeers.Contains(sessionId))
+            if (offeredRtcPeers.Contains(sessionId))
                 return;
-            offeredPeers.Add(sessionId);
+            offeredRtcPeers.Add(sessionId);
 
-            if (!peers.TryGetValue(sessionId, out var peer))
+            if (!rtcPeers.TryGetValue(sessionId, out var peer))
             {
-                CreatePeer(sessionId);
-                peer = peers[sessionId];
+                CreateRtcPeer(sessionId);
+                peer = rtcPeers[sessionId];
             }
+            peer.AddTrack(audioInputTrack, sendStream);
 
             // Offer another peer to receive stream from this
             Debug.Log($"Creating RTC offer to {sessionId}");
@@ -240,42 +250,42 @@ namespace VEServicesClient
             await SendDesc(sessionId, desc);
         }
 
-        public void RemovePeer(string sessionId)
+        public void RemoveRtcPeer(string sessionId)
         {
-            if (peerReceiveStreams.TryGetValue(sessionId, out var peerReceiveStream))
+            if (rtcPeerReceiveStreams.TryGetValue(sessionId, out var peerReceiveStream))
             {
                 peerReceiveStream.Dispose();
-                peerReceiveStreams.Remove(sessionId);
+                rtcPeerReceiveStreams.Remove(sessionId);
             }
 
-            if (peerAudioOutputSources.ContainsKey(sessionId))
+            if (rtcPeerAudioOutputSources.ContainsKey(sessionId))
             {
-                var trackIds = new List<string>(peerAudioOutputSources[sessionId].Keys);
+                var trackIds = new List<string>(rtcPeerAudioOutputSources[sessionId].Keys);
                 foreach (var trackId in trackIds)
                 {
-                    if (peerAudioOutputSources[sessionId][trackId] != null)
-                        Object.Destroy(peerAudioOutputSources[sessionId][trackId].gameObject);
-                    peerAudioOutputSources[sessionId].Remove(trackId);
+                    if (rtcPeerAudioOutputSources[sessionId][trackId] != null)
+                        Object.Destroy(rtcPeerAudioOutputSources[sessionId][trackId].gameObject);
+                    rtcPeerAudioOutputSources[sessionId].Remove(trackId);
                 }
-                peerAudioOutputSources.Remove(sessionId);
+                rtcPeerAudioOutputSources.Remove(sessionId);
             }
 
-            if (peers.TryGetValue(sessionId, out var peer))
+            if (rtcPeers.TryGetValue(sessionId, out var peer))
             {
                 peer.Close();
                 peer.Dispose();
-                peers.Remove(sessionId);
+                rtcPeers.Remove(sessionId);
             }
 
-            peerIceCandidates.Remove(sessionId);
-            peerDescs.Remove(sessionId);
-            offeredPeers.Remove(sessionId);
+            rtcPeerIceCandidates.Remove(sessionId);
+            rtcPeerDescs.Remove(sessionId);
+            offeredRtcPeers.Remove(sessionId);
         }
 
         public List<AudioSource> GetAudioSources(string sessionId)
         {
             var result = new List<AudioSource>();
-            if (!peerAudioOutputSources.TryGetValue(sessionId, out var dict))
+            if (!rtcPeerAudioOutputSources.TryGetValue(sessionId, out var dict))
                 return result;
             var trackIds = new List<string>(dict.Keys);
             foreach (var trackId in trackIds)
@@ -288,7 +298,7 @@ namespace VEServicesClient
 
         public void SetAudioSourcesPosition(string sessionId, Vector3 position)
         {
-            if (!peerAudioOutputSources.TryGetValue(sessionId, out var dict))
+            if (!rtcPeerAudioOutputSources.TryGetValue(sessionId, out var dict))
                 return;
             var trackIds = new List<string>(dict.Keys);
             foreach (var trackId in trackIds)
@@ -298,31 +308,15 @@ namespace VEServicesClient
             }
         }
 
-        private async void ProceedPeerData(string sessionId)
+        private async void ProceedRtcPeerData(string sessionId)
         {
-            if (!peers.TryGetValue(sessionId, out var peer))
+            if (!rtcPeers.TryGetValue(sessionId, out var peer))
             {
-                CreatePeer(sessionId);
-                peer = peers[sessionId];
+                CreateRtcPeer(sessionId);
+                peer = rtcPeers[sessionId];
             }
 
-            if (peerIceCandidates.TryGetValue(sessionId, out var candidateList))
-            {
-                while (candidateList.Count > 0)
-                {
-                    RTCIceCandidate candidate = null;
-                    lock (candidateList)
-                    {
-                        candidate = candidateList[0];
-                        candidateList.RemoveAt(0);
-                    }
-                    if (candidate == null)
-                        continue;
-                    peer.AddIceCandidate(candidate);
-                }
-            }
-
-            if (peerDescs.TryGetValue(sessionId, out var descList))
+            if (rtcPeerDescs.TryGetValue(sessionId, out var descList))
             {
                 while (descList.Count > 0)
                 {
@@ -340,6 +334,12 @@ namespace VEServicesClient
                     while (!setRemoteDescAsyncOp.IsDone)
                     {
                         await Task.Yield();
+                    }
+
+                    if (setRemoteDescAsyncOp.IsError)
+                    {
+                        Debug.LogError($"Error when set remote desc, before create answer: {setRemoteDescAsyncOp.Error.errorType} {setRemoteDescAsyncOp.Error.message}, {Room.SessionId} {sessionId} {desc.type}");
+                        continue;
                     }
 
                     if (desc.type != RTCSdpType.Offer)
@@ -369,16 +369,32 @@ namespace VEServicesClient
 
                     if (setLocalDescAsyncOp.IsError)
                     {
-                        Debug.LogError($"Error when set local desc, after create answer: {createAnswerAsyncOp.Error.errorType} {setLocalDescAsyncOp.Error.message}");
+                        Debug.LogError($"Error when set local desc, after create answer: {setLocalDescAsyncOp.Error.errorType} {setLocalDescAsyncOp.Error.message}");
                         continue;
                     }
 
                     await SendDesc(sessionId, desc);
                 }
             }
+
+            if (rtcPeerIceCandidates.TryGetValue(sessionId, out var candidateList))
+            {
+                while (candidateList.Count > 0)
+                {
+                    RTCIceCandidate candidate = null;
+                    lock (candidateList)
+                    {
+                        candidate = candidateList[0];
+                        candidateList.RemoveAt(0);
+                    }
+                    if (candidate == null)
+                        continue;
+                    peer.AddIceCandidate(candidate);
+                }
+            }
         }
 
-        private void OnCandidate(OnCandidateMsg data)
+        private void OnRtcCandidate(OnCandidateMsg data)
         {
             var sessionId = data.sessionId;
             var info = new RTCIceCandidateInit();
@@ -386,30 +402,37 @@ namespace VEServicesClient
             info.sdpMid = data.sdpMid;
             if (data.sdpMLineIndex.HasValue)
                 info.sdpMLineIndex = data.sdpMLineIndex;
-            if (!peerIceCandidates.TryGetValue(sessionId, out var list))
+            RTCSessionDescription? sessionDesc = null;
+            if (rtcPeers.ContainsKey(sessionId))
             {
-                list = new List<RTCIceCandidate>();
-                peerIceCandidates[sessionId] = list;
+                try
+                {
+                    sessionDesc = rtcPeers[sessionId].CurrentRemoteDescription;
+                }
+                catch
+                {
+                    sessionDesc = null;
+                }
             }
-            lock (list)
-                list.Add(new RTCIceCandidate(info));
-            ProceedPeerData(sessionId);
+            if (!rtcPeerIceCandidates.ContainsKey(sessionId))
+                rtcPeerIceCandidates[sessionId] = new List<RTCIceCandidate>();
+            rtcPeerIceCandidates[sessionId].Add(new RTCIceCandidate(info));
+            if (sessionDesc.HasValue)
+            {
+                ProceedRtcPeerData(sessionId);
+            }
         }
 
-        private void OnDesc(OnDescMsg data)
+        private void OnRtcDesc(OnDescMsg data)
         {
             var sessionId = data.sessionId;
             var desc = new RTCSessionDescription();
             desc.type = (RTCSdpType)data.type;
             desc.sdp = data.sdp;
-            if (!peerDescs.TryGetValue(sessionId, out var list))
-            {
-                list = new List<RTCSessionDescription>();
-                peerDescs[sessionId] = list;
-            }
-            lock (list)
-                list.Add(desc);
-            ProceedPeerData(sessionId);
+            if (!rtcPeerDescs.ContainsKey(sessionId))
+                rtcPeerDescs[sessionId] = new List<RTCSessionDescription>();
+            rtcPeerDescs[sessionId].Add(desc);
+            ProceedRtcPeerData(sessionId);
         }
 
         public async Task SendCandidate(string sessionId, RTCIceCandidateInit candidateInit)
