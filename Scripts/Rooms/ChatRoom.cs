@@ -218,21 +218,21 @@ namespace VEServicesClient
         {
             var data = new Dictionary<string, object>();
             data["groupId"] = groupId;
-            await Room.Send("group-invite", data);
+            await Room.Send("group-invite-accept", data);
         }
 
         public async Task SendGroupInviteDecline(string groupId)
         {
             var data = new Dictionary<string, object>();
             data["groupId"] = groupId;
-            await Room.Send("group-invite", data);
+            await Room.Send("group-invite-decline", data);
         }
 
         public async Task SendLeaveGroup(string groupId)
         {
             var data = new Dictionary<string, object>();
             data["groupId"] = groupId;
-            await Room.Send("group-invite", data);
+            await Room.Send("leave-group", data);
         }
 
         public async Task SendKickUser(string groupId, string userId)
@@ -240,7 +240,7 @@ namespace VEServicesClient
             var data = new Dictionary<string, object>();
             data["groupId"] = groupId;
             data["userId"] = userId;
-            await Room.Send("group-invite", data);
+            await Room.Send("kick-user", data);
         }
     }
 }
