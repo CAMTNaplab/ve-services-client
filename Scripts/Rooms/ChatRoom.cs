@@ -20,7 +20,6 @@ namespace VEServicesClient
 
         public static readonly Dictionary<string, GroupData> Groups = new Dictionary<string, GroupData>();
         public static readonly Dictionary<string, GroupData> GroupInvitations = new Dictionary<string, GroupData>();
-        public static readonly Dictionary<string, UserData> GroupUsers = new Dictionary<string, UserData>();
         public static readonly Dictionary<string, List<string>> GroupUserIds = new Dictionary<string, List<string>>();
 
         public ChatRoom() : base("chatRoom", new Dictionary<string, object>())
@@ -66,6 +65,9 @@ namespace VEServicesClient
 
         private void OnGroupLeave(GroupLeaveResp data)
         {
+            if (!GroupUserIds.ContainsKey(data.groupId))
+                GroupUserIds[data.groupId] = new List<string>();
+            GroupUserIds[data.groupId].Remove(data.userId);
             if (onGroupLeave != null)
                 onGroupLeave.Invoke(data);
         }
@@ -83,11 +85,9 @@ namespace VEServicesClient
 
         private void OnGroupUserList(GroupUserListResp data)
         {
-            GroupUsers.Clear();
             GroupUserIds[data.groupId] = new List<string>();
             foreach (var entry in data.list)
             {
-                GroupUsers.Add(entry.userId, entry);
                 GroupUserIds[data.groupId].Add(entry.userId);
             }
             if (onGroupUserList != null)
@@ -107,6 +107,9 @@ namespace VEServicesClient
 
         private void OnGroupJoin(GroupJoinResp data)
         {
+            if (!GroupUserIds.ContainsKey(data.groupId))
+                GroupUserIds[data.groupId] = new List<string>();
+            GroupUserIds[data.groupId].Add(data.userId);
             if (onGroupJoin != null)
                 onGroupJoin.Invoke(data);
         }
