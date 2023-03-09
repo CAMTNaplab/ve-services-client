@@ -116,6 +116,8 @@ namespace VEServicesClient
 
             CurrentMediaId = resp.mediaId;
             SetVolume(resp.volume);
+            LastResp = resp;
+            LastRespTime = Time.unscaledTime;
             if (string.IsNullOrEmpty(resp.filePath))
             {
                 // AVPro
@@ -138,8 +140,6 @@ namespace VEServicesClient
                     UpdatePlayer();
                 }
             }
-            LastResp = resp;
-            LastRespTime = Time.unscaledTime;
         }
 
         protected virtual void VideoPlayer_PrepareCompleted(VideoPlayer source)
