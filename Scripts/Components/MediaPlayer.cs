@@ -8,9 +8,9 @@ namespace VEServicesClient
     public class MediaPlayer : MonoBehaviour
     {
         public string playListId;
+        [HideInInspector]
         public VideoPlayer videoPlayer;
         public RenderHeads.Media.AVProVideo.MediaPlayer avProPlayer;
-        public bool convertToAvPro = true;
         public string CurrentMediaId { get; protected set; }
         public MediaResp LastResp { get; protected set; }
         public float LastRespTime { get; protected set; }
@@ -42,7 +42,7 @@ namespace VEServicesClient
         protected virtual async void OnEnable()
         {
             MediaRoom.onResp += Instance_onResp;
-            if (convertToAvPro && !_avProCreated && videoPlayer != null && avProPlayer == null)
+            if (!_avProCreated && videoPlayer != null && avProPlayer == null)
             {
                 // Convert player
                 Renderer renderer = videoPlayer.targetMaterialRenderer;

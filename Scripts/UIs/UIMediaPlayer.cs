@@ -1,4 +1,5 @@
 using System.Collections;
+using RenderHeads.Media.AVProVideo;
 using SimpleFileBrowser;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,7 +9,8 @@ namespace VEServicesClient
 {
     public class UIMediaPlayer : MonoBehaviour
     {
-        public RenderHeads.Media.AVProVideo.MediaPlayer mediaPlayer;
+        public DisplayUGUI display;
+        public AudioOutput audioOutput;
         public Slider seekSlider;
         public Slider volumeSlider;
         public UIMediaList mediaList;
@@ -26,29 +28,27 @@ namespace VEServicesClient
             {
                 if (source != null)
                 {
-                    mediaPlayer.Stop();
-                    if (source.avProPlayer != null)
-                        source.avProPlayer.AudioMuted = false;
-                    ClientInstance.Instance.MediaRoom.SendSub(source.playListId);
+                    var audio = source.GetComponentInChildren<AudioSource>();
+                    if (audio)
+                        audio.volume = 1f;
                 }
                 source = value;
                 if (source != null)
                 {
                     _url = string.Empty;
-                    if (source.avProPlayer != null)
-                        source.avProPlayer.AudioMuted = true;
-                    ClientInstance.Instance.MediaRoom.SendSub(source.playListId);
+                    var audio = source.GetComponentInChildren<AudioSource>();
+                    if (audio)
+                        audio.volume = 0f;
+                    display.CurrentMediaPlayer = source.avProPlayer;
+                    audioOutput.ChangeMediaPlayer(source.avProPlayer);
                     if (mediaList)
                         mediaList.Load(source.playListId);
-                    Instance_onResp(source.LastResp);
                 }
             }
         }
 
         protected void OnEnable()
         {
-            mediaPlayer.Events.AddListener(AVProMediaPlayer_HandleEvent);
-            MediaRoom.onResp += Instance_onResp;
             if (seekSlider)
                 seekSlider.onValueChanged.AddListener(OnSeekSliderValueChanged);
             if (volumeSlider)
@@ -57,56 +57,11 @@ namespace VEServicesClient
 
         protected void OnDisable()
         {
-            mediaPlayer.Events.RemoveListener(AVProMediaPlayer_HandleEvent);
-            MediaRoom.onResp -= Instance_onResp;
             if (seekSlider)
                 seekSlider.onValueChanged.RemoveListener(OnSeekSliderValueChanged);
             if (volumeSlider)
                 volumeSlider.onValueChanged.RemoveListener(OnVolumeSliderValueChanged);
             Source = null;
-        }
-
-        protected virtual void AVProMediaPlayer_HandleEvent(RenderHeads.Media.AVProVideo.MediaPlayer mediaPlayer, RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType eventType, RenderHeads.Media.AVProVideo.ErrorCode code)
-        {
-            if (eventType != RenderHeads.Media.AVProVideo.MediaPlayerEvent.EventType.ReadyToPlay)
-                return;
-            UpdatePlayer();
-        }
-
-        protected virtual void Instance_onResp(MediaResp resp)
-        {
-            if (resp.playListId != source.playListId)
-                return;
-            if (_url != source.CurrentVideoUrl)
-            {
-                _url = source.CurrentVideoUrl;
-                mediaPlayer.OpenMedia(new RenderHeads.Media.AVProVideo.MediaPath(source.CurrentVideoUrl, RenderHeads.Media.AVProVideo.MediaPathType.AbsolutePathOrURL), false);
-            }
-            else
-            {
-                UpdatePlayer();
-            }
-        }
-
-        protected virtual void UpdatePlayer()
-        {
-            if (mediaPlayer.Control != null && Mathf.Abs((float)mediaPlayer.Control.GetCurrentTime() - source.LastResp.time) > 1f)
-            {
-                mediaPlayer.Control.Seek(source.LastResp.time);
-            }
-            if (source.LastResp.isPlaying)
-            {
-                mediaPlayer.Play();
-            }
-            else if (source.LastResp.time <= 0f)
-            {
-                mediaPlayer.Stop();
-            }
-            else
-            {
-                mediaPlayer.Pause();
-            }
-            mediaPlayer.AudioVolume = source.LastResp.volume;
         }
 
         protected void Update()
