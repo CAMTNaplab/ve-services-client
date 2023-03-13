@@ -28,17 +28,17 @@ namespace VEServicesClient
             {
                 if (source != null)
                 {
-                    var audio = source.GetComponentInChildren<AudioSource>();
+                    var audio = source.GetComponentInChildren<AudioOutput>();
                     if (audio)
-                        audio.volume = 1f;
+                        audio.ForceMute = false;
                 }
                 source = value;
                 if (source != null)
                 {
                     _url = string.Empty;
-                    var audio = source.GetComponentInChildren<AudioSource>();
+                    var audio = source.GetComponentInChildren<AudioOutput>();
                     if (audio)
-                        audio.volume = 0f;
+                        audio.ForceMute = true;
                     display.CurrentMediaPlayer = source.avProPlayer;
                     audioOutput.ChangeMediaPlayer(source.avProPlayer);
                     if (mediaList)
