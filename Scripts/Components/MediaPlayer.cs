@@ -84,7 +84,8 @@ namespace VEServicesClient
                     fieldInfo.SetValue(audioOutput, true);
                     audioOutput.Player = avProPlayer;
                 }
-
+                DestroyImmediate(videoPlayer);
+                videoPlayer = null;
                 _avProCreated = true;
             }
             // Setup events
@@ -237,6 +238,12 @@ namespace VEServicesClient
                         audio.volume = volume;
                 }
             }
+        }
+
+        public void ReseekPlayer()
+        {
+            if (avProPlayer != null)
+                avProPlayer.Control.Seek(avProPlayer.Control.GetCurrentTime() - 0.5);
         }
     }
 }
