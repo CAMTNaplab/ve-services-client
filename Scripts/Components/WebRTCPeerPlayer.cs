@@ -8,14 +8,14 @@ namespace VEServicesClient
         public static WebRTCPeerPlayer Mine { get; private set; }
         public Transform audioSourceTransform;
         [SyncField(
-            alwaysSync = true,
+            syncBehaviour = LiteNetLibSyncField.SyncBehaviour.AlwaysSync,
             clientDeliveryMethod = LiteNetLib.DeliveryMethod.ReliableOrdered,
             deliveryMethod = LiteNetLib.DeliveryMethod.ReliableOrdered,
             syncMode = LiteNetLibSyncField.SyncMode.ClientMulticast)]
         public string sessionId;
 
         [SyncField(
-            alwaysSync = true,
+            syncBehaviour = LiteNetLibSyncField.SyncBehaviour.AlwaysSync,
             clientDeliveryMethod = LiteNetLib.DeliveryMethod.ReliableOrdered,
             deliveryMethod = LiteNetLib.DeliveryMethod.ReliableOrdered,
             syncMode = LiteNetLibSyncField.SyncMode.ClientMulticast)]
